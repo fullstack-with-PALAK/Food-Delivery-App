@@ -1,0 +1,148 @@
+.preferences-page {
+  min-height: 100vh;
+  background: #f5f2ec;
+  padding: 30px 20px 60px;
+}
+
+.preferences-hero {
+  background: radial-gradient(circle at top left, #a8edea 0%, #fed6e3 100%);
+  border-radius: 18px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+.preferences-hero h1 {
+  margin: 0;
+  font-size: 32px;
+  color: #1f2937;
+}
+
+.preferences-hero p {
+  margin: 0;
+  color: #4b5563;
+}
+
+.btn-primary {
+  align-self: flex-start;
+  background: #111827;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #0b1220;
+}
+
+.preferences-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.preferences-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preferences-card.highlight {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.preferences-card h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.preferences-card p {
+  margin: 0;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.preferences-card.highlight .setting-row {
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+.setting-row h4 {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+}
+
+.setting-row span {
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.toggle {
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  border: none;
+  background: #e5e7eb;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle span {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  top: 3px;
+  left: 3px;
+  transition: all 0.2s ease;
+}
+
+.toggle.on {
+  background: #22c55e;
+}
+
+.toggle.on span {
+  transform: translateX(20px);
+}
+
+.privacy-list {
+  display: grid;
+  gap: 16px;
+}
+
+.privacy-list h4 {
+  margin: 0 0 4px 0;
+}
+
+@media (max-width: 768px) {
+  .preferences-hero {
+    padding: 24px;
+  }
+
+  .preferences-grid {
+    grid-template-columns: 1fr;
+  }
+}

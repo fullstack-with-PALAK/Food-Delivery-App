@@ -11,6 +11,7 @@ import "react-toastify/dist/ReactToastify.css";
 import Verify from "./pages/Verify/Verify";
 import MyOrders from "./pages/MyOrders/MyOrders";
 import NotificationsPage from "./pages/Notifications/Notifications";
+import Preferences from "./pages/Preferences/Preferences";
 
 const App = () => {
   const [showLogin, setShowLogin] = useState(false);
@@ -27,6 +28,7 @@ const App = () => {
           <Route path="/verify" element={<Verify />} />
           <Route path="/myorders" element={<MyOrders />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/preferences" element={<Preferences />} />
         </Routes>
       </div>
       <Footer />
