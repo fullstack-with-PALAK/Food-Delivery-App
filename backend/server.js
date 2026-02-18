@@ -7,10 +7,13 @@ import { connectDB } from "./config/db.js";
 import config from "./config/config.js";
 
 // Route imports
-import foodRouter from "./routes/foodRoute.js";
-import userRouter from "./routes/userRoute.js";
-import cartRouter from "./routes/cartRoute.js";
-import orderRouter from "./routes/orderRoute.js";
+import foodRoute from "./routes/foodRoute.js";
+import userRoute from "./routes/userRoute.js";
+import cartRoute from "./routes/cartRoute.js";
+import orderRoute from "./routes/orderRoute.js";
+import reviewRoute from "./routes/reviewRoute.js";
+import notificationRoute from "./routes/notificationRoute.js";
+import promoRoute from "./routes/promoRoute.js";
 
 // Initialize Express app
 const app = express();
@@ -56,10 +59,13 @@ app.use((req, res, next) => {
 app.use("/images", express.static("uploads"));
 
 // API Routes
-app.use("/api/food", foodRouter);
-app.use("/api/user", userRouter);
-app.use("/api/cart", cartRouter);
-app.use("/api/order", orderRouter);
+app.use("/api/food", foodRoute);
+app.use("/api/user", userRoute);
+app.use("/api/cart", cartRoute);
+app.use("/api/order", orderRoute);
+app.use("/api/review", reviewRoute);
+app.use("/api/notification", notificationRoute);
+app.use("/api/promo", promoRoute);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -121,8 +127,4 @@ app.listen(config.port, () => {
   console.log(`✓ CORS Origin: ${config.corsOrigin}`);
   console.log(`✓ API Base URL: http://localhost:${config.port}/api`);
   console.log("================================");
-});
-
-app.listen(port, () => {
-  console.log(`Server Started on port: ${port}`);
 });
