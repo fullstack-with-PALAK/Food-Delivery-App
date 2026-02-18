@@ -1,0 +1,226 @@
+.verify-page {
+  margin-top: 100px;
+  margin-bottom: 50px;
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.verify-container {
+  width: 100%;
+  max-width: 500px;
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f0f0f0;
+  border-top: 5px solid #ff7a00;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner p {
+  color: #666;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.verify-card {
+  background: white;
+  border-radius: 12px;
+  padding: 40px 30px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-top: 5px solid;
+}
+
+.verify-card.success {
+  border-top-color: #27ae60;
+}
+
+.verify-card.failed {
+  border-top-color: #e74c3c;
+}
+
+.verify-card.error {
+  border-top-color: #f39c12;
+}
+
+.success-icon,
+.failed-icon,
+.error-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 40px;
+  font-weight: bold;
+  color: white;
+}
+
+.success-icon {
+  background: #27ae60;
+}
+
+.failed-icon {
+  background: #e74c3c;
+}
+
+.error-icon {
+  background: #f39c12;
+}
+
+.verify-card h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2c2c2c;
+  margin: 0 0 10px 0;
+}
+
+.verify-card > p:not(.redirect-message) {
+  color: #666;
+  font-size: 15px;
+  margin: 0 0 30px 0;
+  line-height: 1.6;
+}
+
+.order-number {
+  color: #ff7a00;
+  font-weight: 600;
+  background: #fff4e6;
+  padding: 10px 15px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 25px !important;
+}
+
+.order-summary {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  text-align: left;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.summary-item span {
+  color: #666;
+}
+
+.summary-item strong {
+  color: #2c2c2c;
+  font-weight: 600;
+}
+
+.status-badge {
+  background: #e8f5e9;
+  color: #27ae60;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.redirect-message {
+  color: #27ae60;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.continue-btn,
+.retry-btn,
+.home-btn,
+.support-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 10px;
+}
+
+.continue-btn {
+  background: linear-gradient(135deg, #ff7a00, #ff6600);
+  color: white;
+  width: 100%;
+}
+
+.continue-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 122, 0, 0.3);
+}
+
+.error-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.retry-btn,
+.home-btn,
+.support-btn {
+  padding: 11px 16px;
+  border: 2px solid #ff7a00;
+  background: white;
+  color: #ff7a00;
+}
+
+.retry-btn:hover,
+.home-btn:hover,
+.support-btn:hover {
+  background: #ff7a00;
+  color: white;
+}
+
+@media (max-width: 600px) {
+  .verify-card {
+    padding: 30px 20px;
+  }
+
+  .verify-card h2 {
+    font-size: 22px;
+  }
+
+  .success-icon,
+  .failed-icon,
+  .error-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 32px;
+  }
+
+  .error-actions {
+    grid-template-columns: 1fr;
+  }
+}
