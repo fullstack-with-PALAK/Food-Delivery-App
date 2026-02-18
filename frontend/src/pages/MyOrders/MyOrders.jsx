@@ -11,6 +11,8 @@ const MyOrders = () => {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [reviewingOrderId, setReviewingOrderId] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [reviewData, setReviewData] = useState({
     rating: 5,
     comment: "",
@@ -43,6 +45,7 @@ const MyOrders = () => {
       );
       if (response.data.success) {
         setOrders(response.data.data || []);
+        setLastUpdated(new Date());
       }
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -87,6 +90,24 @@ const MyOrders = () => {
     }
   }, [token]);
 
+  useEffect(() => {
+    if (!token || !autoRefresh) return;
+
+    const intervalId = setInterval(() => {
+      fetchOrders();
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [token, autoRefresh]);
+
+  const formatLastUpdated = () => {
+    if (!lastUpdated) return "Never";
+    return lastUpdated.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   if (loading) {
     return (
       <div className="my-orders">
@@ -101,6 +122,26 @@ const MyOrders = () => {
   return (
     <div className="my-orders">
       <h2>My Orders</h2>
+
+      <div className="orders-toolbar">
+        <div className="toolbar-left">
+          <button className="refresh-btn" onClick={fetchOrders}>
+            Refresh
+          </button>
+          <div className="auto-refresh">
+            <span>Auto-refresh</span>
+            <button
+              className={`toggle ${autoRefresh ? "on" : ""}`}
+              onClick={() => setAutoRefresh((prev) => !prev)}
+            >
+              <span></span>
+            </button>
+          </div>
+        </div>
+        <div className="toolbar-right">
+          Last updated: {formatLastUpdated()}
+        </div>
+      </div>
 
       {orders.length === 0 ? (
         <div className="empty-orders">
