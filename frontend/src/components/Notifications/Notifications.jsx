@@ -8,11 +8,33 @@ const Notifications = ({ showNotifications, setShowNotifications }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [lastSync, setLastSync] = useState(null);
 
   useEffect(() => {
     if (showNotifications && token && user) {
       fetchNotifications();
     }
+  }, [showNotifications, token, user]);
+
+  useEffect(() => {
+    if (!showNotifications || !token || !user) return;
+
+    const intervalId = setInterval(() => {
+      fetchNotifications();
+    }, 20000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [showNotifications, token, user]);
 
   const fetchNotifications = async () => {
@@ -23,6 +45,7 @@ const Notifications = ({ showNotifications, setShowNotifications }) => {
       });
       if (response.data.success) {
         setNotifications(response.data.notifications);
+        setLastSync(new Date());
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
@@ -139,6 +162,9 @@ const Notifications = ({ showNotifications, setShowNotifications }) => {
       : notifications.filter((n) => n.type === filter);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const lastSyncText = lastSync
+    ? lastSync.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : 'Never';
 
   if (!showNotifications) return null;
 
@@ -158,6 +184,7 @@ const Notifications = ({ showNotifications, setShowNotifications }) => {
 
         {/* Action Bar */}
         <div className="notifications-actions">
+          <span className="last-sync">Last sync: {lastSyncText}</span>
           {unreadCount > 0 && (
             <button className="mark-read-btn" onClick={markAllAsRead}>
               Mark all as read

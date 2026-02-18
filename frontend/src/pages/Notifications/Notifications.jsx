@@ -10,12 +10,35 @@ const NotificationsPage = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastSync, setLastSync] = useState(null);
 
   useEffect(() => {
     if (token && user) {
       fetchNotifications();
     }
   }, [token, user]);
+
+  useEffect(() => {
+    if (!token || !user || !autoRefresh) return;
+
+    const intervalId = setInterval(() => {
+      fetchNotifications();
+    }, 25000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [token, user, autoRefresh]);
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -25,6 +48,7 @@ const NotificationsPage = () => {
       });
       if (response.data.success) {
         setNotifications(response.data.notifications);
+        setLastSync(new Date());
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
@@ -137,6 +161,9 @@ const NotificationsPage = () => {
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const lastSyncText = lastSync
+    ? lastSync.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : 'Never';
 
   const filteredNotifications = useMemo(() => {
     const base =
@@ -164,6 +191,17 @@ const NotificationsPage = () => {
           <p>Stay on top of orders, promos, and account updates.</p>
         </div>
         <div className="hero-actions">
+          <div className="sync-status">
+            <span className="live-dot"></span>
+            <span>Live</span>
+            <span className="last-sync">Updated {lastSyncText}</span>
+          </div>
+          <button
+            className={`btn-toggle ${autoRefresh ? 'on' : ''}`}
+            onClick={() => setAutoRefresh((prev) => !prev)}
+          >
+            Auto-refresh {autoRefresh ? 'On' : 'Off'}
+          </button>
           {unreadCount > 0 && (
             <button className="btn-outline" onClick={markAllAsRead}>
               Mark all as read

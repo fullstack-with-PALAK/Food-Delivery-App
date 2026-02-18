@@ -77,6 +77,14 @@
   border-bottom: 1px solid #e0e0e0;
   display: flex;
   gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.notifications-actions .last-sync {
+  font-size: 11px;
+  color: #888;
+  margin-right: auto;
 }
 
 .mark-read-btn,
