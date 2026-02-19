@@ -1,67 +1,32 @@
 import React, { useContext, useEffect, useState } from 'react';
 import './Wishlist.css';
 import { StoreContext } from '../../context/StoreContext';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
 
 const Wishlist = () => {
   const navigate = useNavigate();
-  const { url, token, user, cartItems, setCartItems } = useContext(StoreContext);
-  const [wishlistItems, setWishlistItems] = useState([]);
+  const {
+    token,
+    user,
+    wishlistItems,
+    fetchWishlist,
+    removeFromWishlist,
+    addToCart,
+    url,
+  } = useContext(StoreContext);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('latest');
 
   useEffect(() => {
     if (token && user) {
-      fetchWishlist();
+      setLoading(true);
+      fetchWishlist().finally(() => setLoading(false));
     }
   }, [token, user]);
 
-  const fetchWishlist = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${url}/api/wishlist`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.data.success) {
-        setWishlistItems(response.data.wishlist || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch wishlist:', error);
-      toast.error('Failed to load wishlist');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const removeFromWishlist = async (foodId) => {
-    try {
-      const response = await axios.delete(
-        `${url}/api/wishlist/${foodId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (response.data.success) {
-        setWishlistItems(wishlistItems.filter((item) => item._id !== foodId));
-        toast.success('Removed from wishlist');
-      }
-    } catch (error) {
-      console.error('Failed to remove from wishlist:', error);
-      toast.error('Failed to remove item');
-    }
-  };
-
-  const addToCart = (foodId) => {
-    setCartItems((prev) => ({
-      ...prev,
-      [foodId]: (prev[foodId] || 0) + 1
-    }));
-    toast.success('Added to cart');
-  };
-
   const sortedItems = [...wishlistItems].sort((a, b) => {
     if (sortBy === 'latest') {
-      return new Date(b.addedAt) - new Date(a.addedAt);
+      return new Date(b.addedAt || b.createdAt) - new Date(a.addedAt || a.createdAt);
     } else if (sortBy === 'price-low') {
       return (a.price || 0) - (b.price || 0);
     } else if (sortBy === 'price-high') {

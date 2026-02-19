@@ -15,6 +15,7 @@ import reviewRoute from "./routes/reviewRoute.js";
 import notificationRoute from "./routes/notificationRoute.js";
 import promoRoute from "./routes/promoRoute.js";
 import adminRoute from "./routes/adminRoute.js";
+import wishlistRoute from "./routes/wishlistRoute.js";
 
 // Initialize Express app
 const app = express();
@@ -68,6 +69,7 @@ app.use("/api/review", reviewRoute);
 app.use("/api/notification", notificationRoute);
 app.use("/api/promo", promoRoute);
 app.use("/api/admin", adminRoute);
+app.use("/api/wishlist", wishlistRoute);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

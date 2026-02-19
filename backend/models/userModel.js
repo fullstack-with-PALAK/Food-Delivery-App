@@ -12,7 +12,12 @@ const userSchema = new mongoose.Schema(
     profileImage: { type: String },
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String },
-    favoriteItems: [{ type: mongoose.Schema.Types.ObjectId, ref: "food" }],
+    favoriteItems: [
+      {
+        food: { type: mongoose.Schema.Types.ObjectId, ref: "food", required: true },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
     lastLogin: { type: Date },

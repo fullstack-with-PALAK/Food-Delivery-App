@@ -8,7 +8,16 @@ import { toast } from 'react-toastify';
 const FoodDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { url, token, user, cartItems, setCartItems } = useContext(StoreContext);
+  const {
+    url,
+    token,
+    user,
+    cartItems,
+    setCartItems,
+    wishlistItems,
+    addToWishlist,
+    removeFromWishlist,
+  } = useContext(StoreContext);
   const [food, setFood] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +26,8 @@ const FoodDetail = () => {
   const [reviewFilter, setReviewFilter] = useState('all');
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+
+  const isWishlisted = wishlistItems.some((item) => item._id === id);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -222,6 +233,14 @@ const FoodDetail = () => {
             </div>
             <button onClick={handleAddToCart} className="btn-add-to-cart">
               🛒 Add to Cart
+            </button>
+            <button
+              onClick={() =>
+                isWishlisted ? removeFromWishlist(id) : addToWishlist(id)
+              }
+              className={`btn-wishlist ${isWishlisted ? 'active' : ''}`}
+            >
+              {isWishlisted ? '❤ Saved' : '♡ Save'}
             </button>
           </div>
 

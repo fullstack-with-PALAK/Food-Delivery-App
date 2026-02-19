@@ -15,8 +15,18 @@ const FoodItem = ({
   preparationTime = 30,
   discountPercent = 0
 }) => {
-  const { cartItems, addToCart, removeFromCart, url } = useContext(StoreContext);
+  const {
+    cartItems,
+    addToCart,
+    removeFromCart,
+    url,
+    wishlistItems,
+    addToWishlist,
+    removeFromWishlist,
+  } = useContext(StoreContext);
   const [showDetails, setShowDetails] = useState(false);
+
+  const isWishlisted = wishlistItems.some((item) => item._id === id);
 
   const discountedPrice = discountPercent > 0 
     ? (price * (1 - discountPercent / 100)).toFixed(2) 
@@ -36,6 +46,16 @@ const FoodItem = ({
         {isVegetarian && (
           <div className="veg-badge">🌱</div>
         )}
+
+        <button
+          className={`wishlist-toggle ${isWishlisted ? "active" : ""}`}
+          onClick={() =>
+            isWishlisted ? removeFromWishlist(id) : addToWishlist(id)
+          }
+          title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          {isWishlisted ? "❤" : "♡"}
+        </button>
         
         {!cartItems[id] ? (
           <img

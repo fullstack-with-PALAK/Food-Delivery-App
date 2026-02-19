@@ -138,6 +138,35 @@
   border-radius: 4px;
 }
 
+.wishlist-toggle {
+  position: absolute;
+  top: 52px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.95);
+  color: #e11d48;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  transition: all 0.2s ease;
+  z-index: 6;
+}
+
+.wishlist-toggle:hover {
+  transform: scale(1.08);
+}
+
+.wishlist-toggle.active {
+  background: #e11d48;
+  color: #fff;
+}
+
 .food-item-img-container .add {
   position: absolute;
   width: 35px;
