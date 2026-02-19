@@ -5,6 +5,7 @@ import Footer from "./components/Footer/Footer";
 import LoginPopup from "./components/LoginPopup/LoginPopup";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import usePageTracking from "./hooks/usePageTracking";
 
 // Lazy load pages for better performance
 const Home = lazy(() => import("./pages/Home/Home"));
@@ -35,6 +36,10 @@ const LoadingFallback = () => (
 
 const App = () => {
   const [showLogin, setShowLogin] = useState(false);
+  
+  // Track page views
+  usePageTracking();
+  
   return (
     <>
       {showLogin ? <LoginPopup setShowLogin={setShowLogin} /> : <></>}
