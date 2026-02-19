@@ -6,6 +6,7 @@ import LoginPopup from "./components/LoginPopup/LoginPopup";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import usePageTracking from "./hooks/usePageTracking";
+import "./styles/accessibility.css";
 
 // Lazy load pages for better performance
 const Home = lazy(() => import("./pages/Home/Home"));

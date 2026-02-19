@@ -4,10 +4,48 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Food Delivery</title>
+    
+    <!-- SEO Meta Tags -->
+    <title>CraveCart - Order Delicious Food Online | Fast Delivery</title>
+    <meta name="description" content="Order your favorite food online from CraveCart. Fast delivery, great deals, and a wide variety of cuisines. Download our app for exclusive offers!" />
+    <meta name="keywords" content="food delivery, online food order, restaurant delivery, fast food, home delivery" />
+    <meta name="author" content="CraveCart" />
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="CraveCart - Order Delicious Food Online" />
+    <meta property="og:description" content="Order your favorite food online with fast delivery. Browse restaurants and cuisines near you." />
+    <meta property="og:image" content="/header_img.png" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CraveCart - Food Delivery" />
+    <meta name="twitter:description" content="Order delicious food online with fast delivery" />
+    
+    <!-- Accessibility -->
+    <meta name="theme-color" content="#ff6b6b" />
+    
+    <!-- Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root" role="main"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Screen reader only styles -->
+    <style>
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+    </style>
   </body>
 </html>
