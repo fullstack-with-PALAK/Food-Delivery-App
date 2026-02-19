@@ -12,6 +12,10 @@ import Verify from "./pages/Verify/Verify";
 import MyOrders from "./pages/MyOrders/MyOrders";
 import NotificationsPage from "./pages/Notifications/Notifications";
 import Preferences from "./pages/Preferences/Preferences";
+import FoodDetail from "./pages/FoodDetail/FoodDetail";
+import Search from "./pages/Search/Search";
+import Wishlist from "./pages/Wishlist/Wishlist";
+import UserProfile from "./pages/Profile/UserProfile";
 
 const App = () => {
   const [showLogin, setShowLogin] = useState(false);
@@ -29,6 +33,10 @@ const App = () => {
           <Route path="/myorders" element={<MyOrders />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/preferences" element={<Preferences />} />
+          <Route path="/food/:id" element={<FoodDetail />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/profile" element={<UserProfile />} />
         </Routes>
       </div>
       <Footer />
