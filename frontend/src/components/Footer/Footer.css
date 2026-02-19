@@ -9,6 +9,12 @@
   padding-top: 80px;
   margin-top: 100px;
 }
+.footer-logo {
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+}
 .footer-content {
   width: 100%;
   display: grid;
