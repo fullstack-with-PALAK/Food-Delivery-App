@@ -1,32 +1,32 @@
-import mongoose from "mongoose";
-import config from "./config.js";
+import { supabase, testConnection } from "./supabase.js";
 
+// Connect to Supabase Database
 export const connectDB = async () => {
   try {
-    const connection = await mongoose.connect(config.mongodbUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      maxPoolSize: 10,
-      socketTimeoutMS: 45000,
-    });
-
-    console.log(`✓ MongoDB Connected: ${connection.connection.host}`);
-    console.log(`✓ Database: ${connection.connection.name}`);
+    const isConnected = await testConnection();
     
-    return connection;
+    if (isConnected) {
+      console.log("================================");
+      console.log("✓ Supabase Connected Successfully");
+      console.log("✓ Database: PostgreSQL (Supabase)");
+      console.log("================================");
+      return true;
+    } else {
+      console.error("✗ Supabase Connection Failed - Retrying in 5 seconds...");
+      setTimeout(connectDB, 5000);
+    }
   } catch (error) {
-    console.error(`✗ MongoDB Connection Error: ${error.message}`);
-    
-    // Retry connection after 5 seconds
+    console.error(`✗ Supabase Connection Error: ${error.message}`);
     setTimeout(connectDB, 5000);
   }
 };
 
 export const disconnectDB = async () => {
   try {
-    await mongoose.disconnect();
-    console.log("✓ MongoDB Disconnected");
+    console.log("✓ Supabase Disconnected");
   } catch (error) {
-    console.error(`✗ MongoDB Disconnection Error: ${error.message}`);
+    console.error(`✗ Supabase Disconnection Error: ${error.message}`);
   }
 };
+
+export { supabase };

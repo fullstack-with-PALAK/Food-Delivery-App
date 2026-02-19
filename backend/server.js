@@ -20,7 +20,7 @@ import wishlistRoute from "./routes/wishlistRoute.js";
 // Initialize Express app
 const app = express();
 
-// Database Connection
+// Database Connection (Supabase)
 connectDB();
 
 // ============================================
