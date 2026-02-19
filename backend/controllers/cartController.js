@@ -1,5 +1,4 @@
-import userModel from "../models/userModel.js";
-import foodModel from "../models/foodModel.js";
+import { cartQuery, foodQuery } from "../config/supabaseHelpers.js";
 import { sendSuccess, sendError, sendValidationError } from "../utils/response.js";
 import { validateRequired } from "../utils/validation.js";
 
@@ -17,13 +16,12 @@ export const addToCart = async (req, res) => {
       return sendValidationError(res, validation.missing);
     }
 
-    // Validate food exists
-    const food = await foodModel.findById(foodId);
-    if (!food) {
+    // Validate food exists and is available
+    const { data: food, error: foodError } = await foodQuery.findById(foodId);
+    if (foodError || !food) {
       return sendError(res, "Food item not found", 404);
     }
 
-    // Validate food is available
     if (!food.available) {
       return sendError(res, "This food item is not available", 400);
     }
@@ -33,35 +31,38 @@ export const addToCart = async (req, res) => {
       return sendError(res, "Quantity must be a positive number", 400);
     }
 
-    // Get user
-    const user = await userModel.findById(userId);
-    if (!user) {
-      return sendError(res, "User not found", 404);
-    }
+    // Check if item already in cart
+    const { data: existingItem } = await cartQuery.getItem(userId, foodId);
 
-    // Initialize cartData if not exists
-    if (!user.cartData) {
-      user.cartData = {};
-    }
-
-    // Add or update item in cart
-    if (user.cartData[foodId]) {
-      user.cartData[foodId] += parseInt(quantity);
+    let cartItem;
+    if (existingItem) {
+      // Update existing item quantity
+      const { data: updated, error: updateError } = await cartQuery.updateQuantity(
+        userId,
+        foodId,
+        existingItem.quantity + parseInt(quantity)
+      );
+      if (updateError) {
+        return sendError(res, "Failed to update cart", 500, { error: updateError.message });
+      }
+      cartItem = updated;
     } else {
-      user.cartData[foodId] = parseInt(quantity);
+      // Add new item to cart
+      const { data: added, error: addError } = await cartQuery.addItem(
+        userId,
+        foodId,
+        parseInt(quantity)
+      );
+      if (addError) {
+        return sendError(res, "Failed to add item to cart", 500, { error: addError.message });
+      }
+      cartItem = added;
     }
-
-    user.updatedAt = new Date();
-    await user.save();
-
-    // Fetch and return updated cart with enriched data
-    const cartWithDetails = await getCartDetails(user.cartData);
 
     return sendSuccess(res, "Item added to cart successfully", {
-      cartId: foodId,
-      quantity: user.cartData[foodId],
-      cartTotal: cartWithDetails.total,
-      itemCount: Object.keys(user.cartData).length,
+      cartId: cartItem.id,
+      foodId: foodId,
+      quantity: cartItem.quantity,
     });
   } catch (error) {
     console.error("Add to cart error:", error);
@@ -81,26 +82,18 @@ export const removeFromCart = async (req, res) => {
       return sendValidationError(res, validation.missing);
     }
 
-    const user = await userModel.findById(userId);
-    if (!user) {
-      return sendError(res, "User not found", 404);
-    }
+    const { error } = await cartQuery.removeItem(userId, foodId);
 
-    if (!user.cartData || !user.cartData[foodId]) {
+    if (error) {
       return sendError(res, "Item not found in cart", 404);
     }
 
-    // Delete item from cart
-    delete user.cartData[foodId];
-
-    user.updatedAt = new Date();
-    await user.save();
-
-    const cartWithDetails = await getCartDetails(user.cartData);
+    // Get updated cart
+    const { data: cartItems } = await cartQuery.getCart(userId);
+    const itemCount = cartItems ? cartItems.length : 0;
 
     return sendSuccess(res, "Item removed from cart successfully", {
-      cartTotal: cartWithDetails.total,
-      itemCount: Object.keys(user.cartData).length,
+      itemCount,
     });
   } catch (error) {
     console.error("Remove from cart error:", error);
@@ -125,32 +118,24 @@ export const updateCartItem = async (req, res) => {
       return sendError(res, "Quantity must be a non-negative number", 400);
     }
 
-    const user = await userModel.findById(userId);
-    if (!user) {
-      return sendError(res, "User not found", 404);
-    }
-
-    if (!user.cartData || !user.cartData[foodId]) {
-      return sendError(res, "Item not found in cart", 404);
-    }
-
     // If quantity is 0, remove the item
     if (quantity === 0) {
-      delete user.cartData[foodId];
+      await cartQuery.removeItem(userId, foodId);
     } else {
-      user.cartData[foodId] = parseInt(quantity);
+      const { error } = await cartQuery.updateQuantity(userId, foodId, parseInt(quantity));
+      if (error) {
+        return sendError(res, "Failed to update cart", 500, { error: error.message });
+      }
     }
 
-    user.updatedAt = new Date();
-    await user.save();
-
-    const cartWithDetails = await getCartDetails(user.cartData);
+    // Get updated cart
+    const { data: cartItems } = await cartQuery.getCart(userId);
+    const itemCount = cartItems ? cartItems.length : 0;
 
     return sendSuccess(res, "Cart updated successfully", {
       foodId,
-      newQuantity: quantity > 0 ? user.cartData[foodId] : 0,
-      cartTotal: cartWithDetails.total,
-      itemCount: Object.keys(user.cartData).length,
+      newQuantity: quantity > 0 ? quantity : 0,
+      itemCount,
     });
   } catch (error) {
     console.error("Update cart error:", error);
@@ -163,29 +148,41 @@ export const getCart = async (req, res) => {
   try {
     const userId = req.userId;
 
-    const user = await userModel.findById(userId);
-    if (!user) {
-      return sendError(res, "User not found", 404);
+    const { data: cartItems, error } = await cartQuery.getCart(userId);
+
+    if (error) {
+      return sendError(res, "Failed to fetch cart", 500, { error: error.message });
     }
 
-    if (!user.cartData || Object.keys(user.cartData).length === 0) {
+    if (!cartItems || cartItems.length === 0) {
       return sendSuccess(res, "Cart is empty", {
-        cartData: {},
         items: [],
         total: 0,
         itemCount: 0,
       });
     }
 
-    // Fetch and enrich cart data
-    const cartWithDetails = await getCartDetails(user.cartData);
+    // Calculate total
+    let total = 0;
+    const items = cartItems.map((item) => {
+      const itemTotal = (item.foods?.price || 0) * item.quantity;
+      total += itemTotal;
+      return {
+        id: item.id,
+        foodId: item.food_id,
+        name: item.foods?.name || "Unknown",
+        price: item.foods?.price || 0,
+        quantity: item.quantity,
+        image: item.foods?.image,
+        category: item.foods?.category,
+        itemTotal: itemTotal,
+      };
+    });
 
     return sendSuccess(res, "Cart retrieved successfully", {
-      cartData: user.cartData,
-      items: cartWithDetails.items,
-      total: cartWithDetails.total,
-      itemCount: Object.keys(user.cartData).length,
-      itemsCount: cartWithDetails.items.length,
+      items,
+      total: parseFloat(total.toFixed(2)),
+      itemCount: items.length,
     });
   } catch (error) {
     console.error("Get cart error:", error);
@@ -198,17 +195,13 @@ export const clearCart = async (req, res) => {
   try {
     const userId = req.userId;
 
-    const user = await userModel.findById(userId);
-    if (!user) {
-      return sendError(res, "User not found", 404);
+    const { error } = await cartQuery.clearCart(userId);
+
+    if (error) {
+      return sendError(res, "Failed to clear cart", 500, { error: error.message });
     }
 
-    user.cartData = {};
-    user.updatedAt = new Date();
-    await user.save();
-
     return sendSuccess(res, "Cart cleared successfully", {
-      cartData: {},
       items: [],
       total: 0,
       itemCount: 0,
@@ -224,12 +217,13 @@ export const getCartSummary = async (req, res) => {
   try {
     const userId = req.userId;
 
-    const user = await userModel.findById(userId);
-    if (!user) {
-      return sendError(res, "User not found", 404);
+    const { data: cartItems, error } = await cartQuery.getCart(userId);
+
+    if (error) {
+      return sendError(res, "Failed to get cart summary", 500, { error: error.message });
     }
 
-    if (!user.cartData || Object.keys(user.cartData).length === 0) {
+    if (!cartItems || cartItems.length === 0) {
       return sendSuccess(res, "Cart summary retrieved", {
         itemCount: 0,
         subtotal: 0,
@@ -239,14 +233,18 @@ export const getCartSummary = async (req, res) => {
       });
     }
 
-    const cartWithDetails = await getCartDetails(user.cartData);
-    const subtotal = cartWithDetails.total;
+    // Calculate subtotal
+    let subtotal = 0;
+    cartItems.forEach((item) => {
+      subtotal += (item.foods?.price || 0) * item.quantity;
+    });
+
     const tax = parseFloat((subtotal * 0.05).toFixed(2)); // 5% tax
     const deliveryFee = subtotal > 0 ? 50 : 0; // Fixed delivery fee
     const total = parseFloat((subtotal + tax + deliveryFee).toFixed(2));
 
     return sendSuccess(res, "Cart summary retrieved", {
-      itemCount: Object.keys(user.cartData).length,
+      itemCount: cartItems.length,
       subtotal: parseFloat(subtotal.toFixed(2)),
       tax,
       deliveryFee,
@@ -257,38 +255,6 @@ export const getCartSummary = async (req, res) => {
     return sendError(res, "Failed to get cart summary", 500, { error: error.message });
   }
 };
-
-// ============== HELPER FUNCTIONS ==============
-
-// Helper function to get cart details with food information
-async function getCartDetails(cartData) {
-  const items = [];
-  let total = 0;
-
-  for (const [foodId, quantity] of Object.entries(cartData)) {
-    const food = await foodModel.findById(foodId).lean();
-
-    if (food) {
-      const itemTotal = food.price * quantity;
-      items.push({
-        foodId: food._id,
-        name: food.name,
-        price: food.price,
-        quantity,
-        image: food.image,
-        category: food.category,
-        itemTotal: parseFloat(itemTotal.toFixed(2)),
-      });
-
-      total += itemTotal;
-    }
-  }
-
-  return {
-    items,
-    total: parseFloat(total.toFixed(2)),
-  };
-}
 
 // Legacy exports for backward compatibility
 export const addToCart_legacy = addToCart;

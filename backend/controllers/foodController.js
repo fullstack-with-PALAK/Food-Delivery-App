@@ -1,4 +1,4 @@
-import foodModel from "../models/foodModel.js";
+import { foodQuery } from "../config/supabaseHelpers.js";
 import { sendSuccess, sendError, sendPaginatedResponse } from "../utils/response.js";
 import { validateRequired, validatePagination } from "../utils/validation.js";
 
@@ -7,48 +7,27 @@ import { validateRequired, validatePagination } from "../utils/validation.js";
 // Get All Foods with Pagination, Search & Filter
 export const getAllFoods = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", category = "", sortBy = "-createdAt" } = req.query;
-
-    // Build filter object
-    const filter = {};
-
-    if (category) {
-      filter.category = category;
-    }
-
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-      ];
-    }
+    const { page = 1, limit = 10, search = "", category = "" } = req.query;
 
     // Validate pagination
-    const { valid, page: p, limit: l, skip } = validatePagination(page, limit);
-
+    const { valid, page: p, limit: l } = validatePagination(page, limit);
     if (!valid) {
       return sendError(res, "Invalid pagination parameters", 400);
     }
 
-    // Get total count for pagination
-    const total = await foodModel.countDocuments(filter);
+    // Build filters object
+    const filters = {};
+    if (category && category.trim()) filters.category = category.trim();
+    if (search && search.trim()) filters.search = search.trim();
 
-    // Fetch foods with sorting and pagination
-    const foods = await foodModel
-      .find(filter)
-      .sort(sortBy)
-      .skip(skip)
-      .limit(l)
-      .lean();
+    // Fetch foods with pagination
+    const { foods, count, error } = await foodQuery.paginated(p, l, filters);
 
-    return sendPaginatedResponse(
-      res,
-      "Foods fetched successfully",
-      foods,
-      p,
-      l,
-      total
-    );
+    if (error) {
+      return sendError(res, "Failed to fetch foods", 500, { error: error.message });
+    }
+
+    return sendPaginatedResponse(res, "Foods fetched successfully", foods || [], p, l, count || 0);
   } catch (error) {
     console.error("Get foods error:", error);
     return sendError(res, "Failed to fetch foods", 500, { error: error.message });
@@ -64,9 +43,9 @@ export const getFoodById = async (req, res) => {
       return sendError(res, "Food ID is required", 400);
     }
 
-    const food = await foodModel.findById(id);
+    const { data: food, error } = await foodQuery.findById(id);
 
-    if (!food) {
+    if (error || !food) {
       return sendError(res, "Food not found", 404);
     }
 
@@ -80,7 +59,7 @@ export const getFoodById = async (req, res) => {
 // Create New Food (Admin Only)
 export const createFood = async (req, res) => {
   try {
-    const { name, description, price, category, image, isVegetarian, calories, preparationTime } = req.body;
+    const { name, description, price, category, image } = req.body;
 
     // Validate required fields
     const validation = validateRequired({
@@ -102,33 +81,22 @@ export const createFood = async (req, res) => {
       return sendError(res, "Price must be a positive number", 400);
     }
 
-    // Check for duplicate food item
-    const existingFood = await foodModel.findOne({
-      name: { $regex: `^${name}$`, $options: "i" },
-      category,
-    });
-
-    if (existingFood) {
-      return sendError(res, "Food item already exists in this category", 409);
-    }
-
     // Create new food
-    const newFood = new foodModel({
+    const { data: newFood, error } = await foodQuery.create({
       name: name.trim(),
       description: description.trim(),
       price: parseFloat(price),
       category: category.trim(),
       image,
-      isVegetarian: isVegetarian || false,
-      calories: calories ? parseInt(calories) : null,
-      preparationTime: preparationTime ? parseInt(preparationTime) : 30,
       available: true,
       rating: 0,
-      reviewCount: 0,
-      createdAt: new Date(),
+      discount_percent: 0,
+      created_at: new Date(),
     });
 
-    await newFood.save();
+    if (error) {
+      return sendError(res, "Failed to create food item", 500, { error: error.message });
+    }
 
     return sendSuccess(res, "Food item created successfully", newFood, 201);
   } catch (error) {
@@ -141,30 +109,32 @@ export const createFood = async (req, res) => {
 export const updateFood = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, category, image, isVegetarian, calories, available, preparationTime, discountPercent } = req.body;
+    const { name, description, price, category, image, available, discount_percent } = req.body;
 
-    const food = await foodModel.findById(id);
-
-    if (!food) {
+    // First check if food exists
+    const { data: existingFood, error: findError } = await foodQuery.findById(id);
+    if (findError || !existingFood) {
       return sendError(res, "Food not found", 404);
     }
 
-    // Update allowed fields
-    if (name) food.name = name.trim();
-    if (description) food.description = description.trim();
-    if (price) food.price = parseFloat(price);
-    if (category) food.category = category.trim();
-    if (image) food.image = image;
-    if (isVegetarian !== undefined) food.isVegetarian = isVegetarian;
-    if (calories) food.calories = parseInt(calories);
-    if (available !== undefined) food.available = available;
-    if (preparationTime) food.preparationTime = parseInt(preparationTime);
-    if (discountPercent !== undefined) food.discountPercent = parseInt(discountPercent);
+    // Prepare updates
+    const updates = { updated_at: new Date() };
+    if (name) updates.name = name.trim();
+    if (description) updates.description = description.trim();
+    if (price) updates.price = parseFloat(price);
+    if (category) updates.category = category.trim();
+    if (image) updates.image = image;
+    if (available !== undefined) updates.available = available;
+    if (discount_percent !== undefined) updates.discount_percent = parseInt(discount_percent);
 
-    food.updatedAt = new Date();
-    await food.save();
+    // Update food
+    const { data: updatedFood, error } = await foodQuery.update(id, updates);
 
-    return sendSuccess(res, "Food item updated successfully", food);
+    if (error) {
+      return sendError(res, "Failed to update food item", 500, { error: error.message });
+    }
+
+    return sendSuccess(res, "Food item updated successfully", updatedFood);
   } catch (error) {
     console.error("Update food error:", error);
     return sendError(res, "Failed to update food item", 500, { error: error.message });
@@ -176,9 +146,9 @@ export const deleteFood = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const food = await foodModel.findByIdAndDelete(id);
+    const { error } = await foodQuery.delete(id);
 
-    if (!food) {
+    if (error) {
       return sendError(res, "Food not found", 404);
     }
 
@@ -194,34 +164,27 @@ export const deleteFood = async (req, res) => {
 // Get Foods by Category
 export const getFoodsByCategory = async (req, res) => {
   try {
-    const { category, page = 1, limit = 10, sortBy = "-rating" } = req.query;
+    const { category, page = 1, limit = 10 } = req.query;
 
     if (!category) {
       return sendError(res, "Category is required", 400);
     }
 
-    const { valid, page: p, limit: l, skip } = validatePagination(page, limit);
-
+    // Validate pagination
+    const { valid, page: p, limit: l } = validatePagination(page, limit);
     if (!valid) {
       return sendError(res, "Invalid pagination parameters", 400);
     }
 
-    const total = await foodModel.countDocuments({
-      category: { $regex: `^${category}$`, $options: "i" },
-      available: true,
+    const { foods, count, error } = await foodQuery.paginated(p, l, {
+      category: category.trim(),
     });
 
-    const foods = await foodModel
-      .find({
-        category: { $regex: `^${category}$`, $options: "i" },
-        available: true,
-      })
-      .sort(sortBy)
-      .skip(skip)
-      .limit(l)
-      .lean();
+    if (error) {
+      return sendError(res, "Failed to fetch foods", 500, { error: error.message });
+    }
 
-    return sendPaginatedResponse(res, `Foods in ${category} category`, foods, p, l, total);
+    return sendPaginatedResponse(res, `Foods in ${category} category`, foods || [], p, l, count || 0);
   } catch (error) {
     console.error("Get foods by category error:", error);
     return sendError(res, "Failed to fetch foods", 500, { error: error.message });
@@ -233,13 +196,18 @@ export const getTopRatedFoods = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    const foods = await foodModel
-      .find({ available: true })
-      .sort({ rating: -1, reviewCount: -1 })
-      .limit(parseInt(limit))
-      .lean();
+    const { data: foods, error } = await foodQuery.findAll({ available: true });
 
-    return sendSuccess(res, "Top rated foods retrieved", foods);
+    if (error) {
+      return sendError(res, "Failed to fetch top rated foods", 500, { error: error.message });
+    }
+
+    // Sort by rating and limit
+    const topFoods = (foods || [])
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(0, parseInt(limit));
+
+    return sendSuccess(res, "Top rated foods retrieved", topFoods);
   } catch (error) {
     console.error("Get top rated foods error:", error);
     return sendError(res, "Failed to fetch top rated foods", 500, { error: error.message });
@@ -249,48 +217,21 @@ export const getTopRatedFoods = async (req, res) => {
 // Get Discount Foods
 export const getDiscountFoods = async (req, res) => {
   try {
-    const foods = await foodModel
-      .find({
-        available: true,
-        discountPercent: { $gt: 0 },
-      })
-      .sort({ discountPercent: -1 })
-      .lean();
+    const { data: allFoods, error } = await foodQuery.findAll({ available: true });
 
-    return sendSuccess(res, "Discount foods retrieved", foods);
+    if (error) {
+      return sendError(res, "Failed to fetch discount foods", 500, { error: error.message });
+    }
+
+    // Filter foods with discount and sort by discount percent
+    const discountFoods = (allFoods || [])
+      .filter((food) => food.discount_percent > 0)
+      .sort((a, b) => (b.discount_percent || 0) - (a.discount_percent || 0));
+
+    return sendSuccess(res, "Discount foods retrieved", discountFoods);
   } catch (error) {
     console.error("Get discount foods error:", error);
     return sendError(res, "Failed to fetch discount foods", 500, { error: error.message });
-  }
-};
-
-// Get Vegetarian Foods
-export const getVegetarianFoods = async (req, res) => {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-
-    const { valid, page: p, limit: l, skip } = validatePagination(page, limit);
-
-    if (!valid) {
-      return sendError(res, "Invalid pagination parameters", 400);
-    }
-
-    const total = await foodModel.countDocuments({
-      isVegetarian: true,
-      available: true,
-    });
-
-    const foods = await foodModel
-      .find({ isVegetarian: true, available: true })
-      .sort({ rating: -1 })
-      .skip(skip)
-      .limit(l)
-      .lean();
-
-    return sendPaginatedResponse(res, "Vegetarian foods retrieved", foods, p, l, total);
-  } catch (error) {
-    console.error("Get vegetarian foods error:", error);
-    return sendError(res, "Failed to fetch vegetarian foods", 500, { error: error.message });
   }
 };
 
@@ -303,34 +244,21 @@ export const searchFoods = async (req, res) => {
       return sendError(res, "Search query is required", 400);
     }
 
-    const { valid, page: p, limit: l, skip } = validatePagination(page, limit);
-
+    // Validate pagination
+    const { valid, page: p, limit: l } = validatePagination(page, limit);
     if (!valid) {
       return sendError(res, "Invalid pagination parameters", 400);
     }
 
-    const total = await foodModel.countDocuments({
-      $or: [
-        { name: { $regex: query, $options: "i" } },
-        { description: { $regex: query, $options: "i" } },
-        { category: { $regex: query, $options: "i" } },
-      ],
+    const { foods, count, error } = await foodQuery.paginated(p, l, {
+      search: query.trim(),
     });
 
-    const foods = await foodModel
-      .find({
-        $or: [
-          { name: { $regex: query, $options: "i" } },
-          { description: { $regex: query, $options: "i" } },
-          { category: { $regex: query, $options: "i" } },
-        ],
-      })
-      .sort({ rating: -1 })
-      .skip(skip)
-      .limit(l)
-      .lean();
+    if (error) {
+      return sendError(res, "Failed to search foods", 500, { error: error.message });
+    }
 
-    return sendPaginatedResponse(res, `Search results for "${query}"`, foods, p, l, total);
+    return sendPaginatedResponse(res, `Search results for "${query}"`, foods || [], p, l, count || 0);
   } catch (error) {
     console.error("Search foods error:", error);
     return sendError(res, "Failed to search foods", 500, { error: error.message });
@@ -340,56 +268,24 @@ export const searchFoods = async (req, res) => {
 // Get All Categories
 export const getCategories = async (req, res) => {
   try {
-    const categories = await foodModel.distinct("category");
+    const { data: foods, error } = await foodQuery.findAll();
 
-    return sendSuccess(
-      res,
-      "Categories retrieved successfully",
-      {
-        total: categories.length,
-        categories: categories.sort(),
-      }
-    );
+    if (error) {
+      return sendError(res, "Failed to fetch categories", 500, { error: error.message });
+    }
+
+    // Extract unique categories from foods
+    const categories = [
+      ...new Set((foods || []).map((f) => f.category).filter((c) => c)),
+    ].sort();
+
+    return sendSuccess(res, "Categories retrieved successfully", {
+      total: categories.length,
+      categories,
+    });
   } catch (error) {
     console.error("Get categories error:", error);
     return sendError(res, "Failed to fetch categories", 500, { error: error.message });
-  }
-};
-
-// Update Food Ratings
-export const updateFoodRating = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rating } = req.body;
-
-    if (!rating || rating < 1 || rating > 5) {
-      return sendError(res, "Rating must be between 1 and 5", 400);
-    }
-
-    const food = await foodModel.findById(id);
-
-    if (!food) {
-      return sendError(res, "Food not found", 404);
-    }
-
-    // Calculate new average rating
-    const newAverageRating =
-      (food.rating * (food.reviewCount || 0) + rating) / (food.reviewCount + 1);
-
-    food.rating = Math.round(newAverageRating * 10) / 10; // Round to 1 decimal
-    food.reviewCount = (food.reviewCount || 0) + 1;
-    food.updatedAt = new Date();
-
-    await food.save();
-
-    return sendSuccess(res, "Food rating updated successfully", {
-      foodId: id,
-      rating: food.rating,
-      reviewCount: food.reviewCount,
-    });
-  } catch (error) {
-    console.error("Update rating error:", error);
-    return sendError(res, "Failed to update rating", 500, { error: error.message });
   }
 };
 

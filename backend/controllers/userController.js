@@ -1,4 +1,4 @@
-import userModel from "../models/userModel.js";
+import { userQuery } from "../config/supabaseHelpers.js";
 import { sendSuccess, sendError, sendValidationError } from "../utils/response.js";
 import { validateEmail, validatePassword, validateRequired } from "../utils/validation.js";
 import { JWTManager } from "../utils/jwt.js";
@@ -37,31 +37,29 @@ export const registerUser = async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await userModel.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
+    const { data: existingUser, error: findError } = await userQuery.findByEmail(email);
+    if (!findError && existingUser) {
       return sendError(res, "Email already registered. Please login instead.", 409);
     }
 
     // Hash password
     const hashedPassword = await PasswordManager.hashPassword(password);
 
-    // Create new user
-    const newUser = new userModel({
+    // Create new user in Supabase
+    const { data: newUser, error: createError } = await userQuery.create({
       name: name.trim(),
       email: email.toLowerCase(),
       password: hashedPassword,
       role: "user",
-      createdAt: new Date(),
+      created_at: new Date(),
     });
 
-    await newUser.save();
+    if (createError) {
+      return sendError(res, "Failed to create user", 500, { error: createError.message });
+    }
 
     // Generate token pair
-    const tokenPair = JWTManager.generateTokenPair(
-      newUser._id,
-      newUser.email,
-      newUser.role
-    );
+    const tokenPair = JWTManager.generateTokenPair(newUser.id, newUser.email, newUser.role);
 
     // Return success response
     return sendSuccess(res, "User registered successfully", {
@@ -89,32 +87,27 @@ export const loginUser = async (req, res) => {
       return sendError(res, "Invalid email format", 400);
     }
 
-    // Find user
-    const user = await userModel.findOne({ email: email.toLowerCase() });
-    if (!user) {
+    // Find user by email
+    const { data: user, error } = await userQuery.findByEmail(email);
+    if (error || !user) {
       return sendError(res, "User not found. Please register first.", 404);
     }
 
     // Compare password
-    const isPasswordCorrect = await PasswordManager.comparePassword(
-      password,
-      user.password
-    );
+    const isPasswordCorrect = await PasswordManager.comparePassword(password, user.password);
 
     if (!isPasswordCorrect) {
       return sendError(res, "Invalid credentials", 401);
     }
 
     // Update last login
-    user.lastLogin = new Date();
-    await user.save();
+    await userQuery.update(user.id, {
+      last_login: new Date(),
+      updated_at: new Date(),
+    });
 
     // Generate token pair
-    const tokenPair = JWTManager.generateTokenPair(
-      user._id,
-      user.email,
-      user.role
-    );
+    const tokenPair = JWTManager.generateTokenPair(user.id, user.email, user.role);
 
     // Return success response
     return sendSuccess(res, "Login successful", {
@@ -137,13 +130,15 @@ export const getUserProfile = async (req, res) => {
       return sendError(res, "User ID not found in request", 400);
     }
 
-    const user = await userModel.findById(userId).select("-password");
+    const { data: user, error } = await userQuery.findById(userId);
 
-    if (!user) {
+    if (error || !user) {
       return sendError(res, "User not found", 404);
     }
 
-    return sendSuccess(res, "Profile retrieved successfully", user);
+    // Return user without password
+    const { password, ...userWithoutPassword } = user;
+    return sendSuccess(res, "Profile retrieved successfully", userWithoutPassword);
   } catch (error) {
     console.error("Get profile error:", error);
     return sendError(res, "Failed to retrieve profile", 500, { error: error.message });
@@ -160,26 +155,31 @@ export const updateUserProfile = async (req, res) => {
       return sendError(res, "User ID not found in request", 400);
     }
 
-    const user = await userModel.findById(userId);
-
-    if (!user) {
+    // First verify user exists
+    const { data: user, error: findError } = await userQuery.findById(userId);
+    if (findError || !user) {
       return sendError(res, "User not found", 404);
     }
 
-    // Update allowed fields
-    if (name) user.name = name.trim();
-    if (phone) user.phone = phone.trim();
-    if (address) user.address = address;
+    // Prepare update object
+    const updates = { updated_at: new Date() };
+    if (name) updates.name = name.trim();
+    if (phone) updates.phone = phone.trim();
+    if (address) updates.address = address;
 
-    user.updatedAt = new Date();
-    await user.save();
+    // Update user
+    const { data: updatedUser, error: updateError } = await userQuery.update(userId, updates);
+
+    if (updateError) {
+      return sendError(res, "Failed to update profile", 500, { error: updateError.message });
+    }
 
     return sendSuccess(res, "Profile updated successfully", {
-      userId: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      address: user.address,
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      address: updatedUser.address,
     });
   } catch (error) {
     console.error("Update profile error:", error);
@@ -202,27 +202,26 @@ export const changePassword = async (req, res) => {
       return sendValidationError(res, validation.missing);
     }
 
-    const user = await userModel.findById(userId);
+    // Get user by ID
+    const { data: user, error: findError } = await userQuery.findById(userId);
 
-    if (!user) {
+    if (findError || !user) {
       return sendError(res, "User not found", 404);
     }
 
     // Verify current password
-    const isPasswordCorrect = await PasswordManager.comparePassword(
-      currentPassword,
-      user.password
-    );
+    const isPasswordCorrect = await PasswordManager.comparePassword(currentPassword, user.password);
 
     if (!isPasswordCorrect) {
       return sendError(res, "Current password is incorrect", 401);
     }
 
-    // Validate new password
+    // Validate new passwords match
     if (newPassword !== confirmPassword) {
       return sendError(res, "Passwords do not match", 400);
     }
 
+    // Validate new password strength
     const passwordValidation = PasswordManager.validatePassword(newPassword);
     if (!passwordValidation.valid) {
       return sendError(res, "New password does not meet requirements", 400, {
@@ -230,10 +229,18 @@ export const changePassword = async (req, res) => {
       });
     }
 
-    // Hash and save new password
-    user.password = await PasswordManager.hashPassword(newPassword);
-    user.updatedAt = new Date();
-    await user.save();
+    // Hash new password
+    const hashedPassword = await PasswordManager.hashPassword(newPassword);
+
+    // Update password in Supabase
+    const { error: updateError } = await userQuery.update(userId, {
+      password: hashedPassword,
+      updated_at: new Date(),
+    });
+
+    if (updateError) {
+      return sendError(res, "Failed to update password", 500, { error: updateError.message });
+    }
 
     return sendSuccess(res, "Password changed successfully");
   } catch (error) {
@@ -242,39 +249,11 @@ export const changePassword = async (req, res) => {
   }
 };
 
-// Logout User (optional - token invalidation on client side)
+// Logout User (token invalidation handled on client side)
 export const logoutUser = async (req, res) => {
   try {
-    // In a production app, you might want to blacklist the token
     return sendSuccess(res, "Logged out successfully");
   } catch (error) {
     return sendError(res, "Logout failed", 500, { error: error.message });
   }
 };
-        success: false,
-        message: "Please enter strong password",
-      });
-    }
-
-    // hashing user password
-
-    const salt = await bcrypt.genSalt(Number(process.env.SALT));
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new userModel({
-      name: name,
-      email: email,
-      password: hashedPassword,
-    });
-
-    const user = await newUser.save();
-    const role=user.role;
-    const token = createToken(user._id);
-    res.json({ success: true, token, role});
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: "Error" });
-  }
-};
-
-export { loginUser, registerUser };
