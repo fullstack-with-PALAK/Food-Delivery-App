@@ -21,6 +21,8 @@ const Search = () => {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 5000 });
   const [minRating, setMinRating] = useState(0);
   const [vegetarianOnly, setVegetarianOnly] = useState(false);
+  const [minDiscount, setMinDiscount] = useState(0);
+  const [availableOnly, setAvailableOnly] = useState(false);
 
   useEffect(() => {
     setSearchQuery(searchParams.get('q') || '');
@@ -31,7 +33,7 @@ const Search = () => {
     if (searchQuery.trim()) {
       performSearch();
     }
-  }, [searchQuery, selectedCategory, priceRange, minRating, vegetarianOnly, sortBy]);
+  }, [searchQuery, selectedCategory, priceRange, minRating, vegetarianOnly, sortBy, minDiscount, availableOnly]);
 
   const fetchCategories = async () => {
     try {
@@ -54,6 +56,8 @@ const Search = () => {
         maxPrice: priceRange.max,
         minRating,
         vegetarian: vegetarianOnly,
+        minDiscount,
+        available: availableOnly,
         sortBy
       });
 
@@ -84,6 +88,8 @@ const Search = () => {
     setPriceRange({ min: 0, max: 5000 });
     setMinRating(0);
     setVegetarianOnly(false);
+    setMinDiscount(0);
+    setAvailableOnly(false);
     setSortBy('relevance');
   };
 
@@ -92,7 +98,9 @@ const Search = () => {
       selectedCategory,
       priceRange.min > 0 || priceRange.max < 5000,
       minRating > 0,
-      vegetarianOnly
+      vegetarianOnly,
+      minDiscount > 0,
+      availableOnly
     ].filter(Boolean).length;
 
   return (
@@ -239,6 +247,39 @@ const Search = () => {
                 onChange={(e) => setVegetarianOnly(e.target.checked)}
               />
               <span>🥬 Vegetarian Only</span>
+            </label>
+          </div>
+
+          {/* Discount Filter */}
+          <div className="filter-group">
+            <h3 className="filter-title">Offers & Discounts</h3>
+            <div className="rating-filter">
+              {[0, 10, 20, 30, 50].map((discount) => (
+                <label key={discount} className="rating-option">
+                  <input
+                    type="radio"
+                    name="discount"
+                    checked={minDiscount === discount}
+                    onChange={() => setMinDiscount(discount)}
+                  />
+                  <span>
+                    {discount === 0 ? 'All items' : `🎁 ${discount}%+ off`}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Availability Filter */}
+          <div className="filter-group">
+            <h3 className="filter-title">Availability</h3>
+            <label className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={availableOnly}
+                onChange={(e) => setAvailableOnly(e.target.checked)}
+              />
+              <span>✅ Available Now</span>
             </label>
           </div>
         </aside>
