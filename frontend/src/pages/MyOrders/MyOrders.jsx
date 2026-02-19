@@ -3,9 +3,11 @@ import "./MyOrders.css";
 import { StoreContext } from "../../context/StoreContext";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 
 const MyOrders = () => {
-  const { url, token } = useContext(StoreContext);
+  const { url, token, addToCart } = useContext(StoreContext);
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
@@ -99,6 +101,23 @@ const MyOrders = () => {
 
     return () => clearInterval(intervalId);
   }, [token, autoRefresh]);
+
+  const handleReorder = async (order) => {
+    try {
+      // Add all items from the order to cart
+      for (const item of order.items) {
+        // Add item quantity times
+        for (let i = 0; i < item.quantity; i++) {
+          await addToCart(item.foodId);
+        }
+      }
+      toast.success("Items added to cart! 🛒");
+      setTimeout(() => navigate("/cart"), 1500);
+    } catch (error) {
+      toast.error("Failed to reorder. Please try again.");
+      console.error("Reorder error:", error);
+    }
+  };
 
   const formatLastUpdated = () => {
     if (!lastUpdated) return "Never";
@@ -354,10 +373,7 @@ const MyOrders = () => {
                       <div className="order-actions">
                         <button
                           className="reorder-btn"
-                          onClick={() => {
-                            // Usually would navigate to cart with items
-                            toast.info("Reorder feature coming soon!");
-                          }}
+                          onClick={() => handleReorder(order)}
                         >
                           🔄 Reorder
                         </button>
